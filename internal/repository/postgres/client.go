@@ -126,6 +126,87 @@ func (r *ClientRepository) GetByAuth0ID(ctx context.Context, auth0ID string) (*d
 	return r.scanClient(ctx, query, auth0ID)
 }
 
+// UpsertBatch inserts or updates multiple clients in a single transaction
+func (r *ClientRepository) UpsertBatch(ctx context.Context, clients []domain.Client) error {
+	if len(clients) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `
+		INSERT INTO clients (id, holded_id, email, company_name, contact_name, phone, vat_type, vat_number, billing_address, shipping_address, is_active, synced_at)
+		VALUES `
+
+	var valueStrings []string
+	var args []any
+	argIdx := 1
+
+	for i := range clients {
+		c := &clients[i]
+		if c.ID == uuid.Nil {
+			c.ID = uuid.New()
+		}
+
+		billingAddr, err := json.Marshal(c.BillingAddress)
+		if err != nil {
+			return fmt.Errorf("marshaling billing address: %w", err)
+		}
+		shippingAddr, err := json.Marshal(c.ShippingAddress)
+		if err != nil {
+			return fmt.Errorf("marshaling shipping address: %w", err)
+		}
+
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, NOW())",
+			argIdx, argIdx+1, argIdx+2, argIdx+3, argIdx+4, argIdx+5, argIdx+6, argIdx+7, argIdx+8, argIdx+9, argIdx+10))
+
+		args = append(args,
+			c.ID,
+			c.HoldedID,
+			c.Email,
+			c.CompanyName,
+			c.ContactName,
+			c.Phone,
+			c.VATType,
+			c.VATNumber,
+			billingAddr,
+			shippingAddr,
+			c.IsActive,
+		)
+		argIdx += 11
+	}
+
+	query += strings.Join(valueStrings, ", ")
+	query += `
+		ON CONFLICT (holded_id) DO UPDATE SET
+			email = EXCLUDED.email,
+			company_name = EXCLUDED.company_name,
+			contact_name = EXCLUDED.contact_name,
+			phone = EXCLUDED.phone,
+			vat_type = EXCLUDED.vat_type,
+			vat_number = EXCLUDED.vat_number,
+			billing_address = EXCLUDED.billing_address,
+			shipping_address = EXCLUDED.shipping_address,
+			is_active = EXCLUDED.is_active,
+			synced_at = NOW(),
+			updated_at = NOW()`
+
+	_, err = tx.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("batch upserting clients: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
+}
+
 // LinkAuth0ID links an Auth0 ID to a client
 func (r *ClientRepository) LinkAuth0ID(ctx context.Context, clientID uuid.UUID, auth0ID string) error {
 	query := `UPDATE clients SET auth0_id = $1, updated_at = $2 WHERE id = $3`

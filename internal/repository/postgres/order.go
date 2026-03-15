@@ -313,3 +313,168 @@ func (r *OrderRepository) Reject(ctx context.Context, id uuid.UUID, reason strin
 
 	return nil
 }
+
+// GetDraftByClientID retrieves the draft order for a specific client
+func (r *OrderRepository) GetDraftByClientID(ctx context.Context, clientID uuid.UUID) (*domain.Order, error) {
+	query := `
+		SELECT id, client_id, status, notes, admin_notes, holded_invoice_id, approved_at, approved_by, rejected_at, rejection_reason, created_at, updated_at
+		FROM orders
+		WHERE client_id = $1 AND status = $2`
+
+	var o domain.Order
+	err := r.db.QueryRow(ctx, query, clientID, domain.OrderStatusDraft).Scan(
+		&o.ID,
+		&o.ClientID,
+		&o.Status,
+		&o.Notes,
+		&o.AdminNotes,
+		&o.HoldedInvoiceID,
+		&o.ApprovedAt,
+		&o.ApprovedBy,
+		&o.RejectedAt,
+		&o.RejectionReason,
+		&o.CreatedAt,
+		&o.UpdatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, repository.ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("scanning draft order: %w", err)
+	}
+
+	items, err := r.getOrderItems(ctx, o.ID)
+	if err != nil {
+		return nil, err
+	}
+	o.Items = items
+
+	return &o, nil
+}
+
+// UpdateItems replaces all items in an order (used for cart updates)
+func (r *OrderRepository) UpdateItems(ctx context.Context, orderID uuid.UUID, items []domain.OrderItem) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Delete existing items
+	deleteQuery := `DELETE FROM order_items WHERE order_id = $1`
+	_, err = tx.Exec(ctx, deleteQuery, orderID)
+	if err != nil {
+		return fmt.Errorf("deleting existing items: %w", err)
+	}
+
+	// Insert new items
+	if len(items) > 0 {
+		insertQuery := `
+			INSERT INTO order_items (id, order_id, product_id, quantity)
+			VALUES ($1, $2, $3, $4)`
+
+		for i := range items {
+			item := &items[i]
+			if item.ID == uuid.Nil {
+				item.ID = uuid.New()
+			}
+			item.OrderID = orderID
+
+			_, err = tx.Exec(ctx, insertQuery,
+				item.ID,
+				item.OrderID,
+				item.ProductID,
+				item.Quantity,
+			)
+			if err != nil {
+				return fmt.Errorf("inserting order item: %w", err)
+			}
+		}
+	}
+
+	// Update order updated_at timestamp
+	updateOrderQuery := `UPDATE orders SET updated_at = $1 WHERE id = $2`
+	_, err = tx.Exec(ctx, updateOrderQuery, time.Now(), orderID)
+	if err != nil {
+		return fmt.Errorf("updating order timestamp: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateNotes updates the notes field of an order
+func (r *OrderRepository) UpdateNotes(ctx context.Context, orderID uuid.UUID, notes string) error {
+	query := `UPDATE orders SET notes = $1, updated_at = $2 WHERE id = $3`
+
+	result, err := r.db.Exec(ctx, query, notes, time.Now(), orderID)
+	if err != nil {
+		return fmt.Errorf("updating order notes: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return repository.ErrNotFound
+	}
+
+	return nil
+}
+
+// SubmitDraft transitions a draft order to pending status with price snapshots
+func (r *OrderRepository) SubmitDraft(ctx context.Context, orderID uuid.UUID, items []domain.OrderItem) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	now := time.Now()
+
+	// Update items with unit_price and line_total
+	updateItemQuery := `
+		UPDATE order_items
+		SET unit_price = $1, line_total = $2
+		WHERE id = $3`
+
+	for i := range items {
+		item := &items[i]
+		_, err = tx.Exec(ctx, updateItemQuery,
+			item.UnitPrice,
+			item.LineTotal,
+			item.ID,
+		)
+		if err != nil {
+			return fmt.Errorf("updating order item prices: %w", err)
+		}
+	}
+
+	// Update order: set status to pending and submitted_at timestamp
+	updateOrderQuery := `
+		UPDATE orders
+		SET status = $1, submitted_at = $2, updated_at = $3
+		WHERE id = $4 AND status = $5`
+
+	result, err := tx.Exec(ctx, updateOrderQuery,
+		domain.OrderStatusPending,
+		now,
+		now,
+		orderID,
+		domain.OrderStatusDraft,
+	)
+	if err != nil {
+		return fmt.Errorf("updating order to pending: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return repository.ErrNotFound
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
+}

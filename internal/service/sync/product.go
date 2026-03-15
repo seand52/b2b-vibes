@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
 	"b2b-orders-api/internal/domain"
-	"b2b-orders-api/internal/external/holded"
-	"b2b-orders-api/internal/external/s3"
+	"b2b-orders-api/internal/clients/holded"
+	"b2b-orders-api/internal/clients/s3"
 	"b2b-orders-api/internal/repository"
 )
 
@@ -22,7 +23,7 @@ const (
 
 // ProductSyncer handles syncing products from Holded to the local database
 type ProductSyncer struct {
-	holded      *holded.Client
+	holded      holded.ClientInterface
 	s3          *s3.Client
 	productRepo repository.ProductRepository
 	imageRepo   repository.ProductImageRepository
@@ -32,7 +33,7 @@ type ProductSyncer struct {
 
 // NewProductSyncer creates a new ProductSyncer
 func NewProductSyncer(
-	holded *holded.Client,
+	holded holded.ClientInterface,
 	s3 *s3.Client,
 	productRepo repository.ProductRepository,
 	imageRepo repository.ProductImageRepository,
@@ -64,10 +65,10 @@ type SyncResult struct {
 func (s *ProductSyncer) Sync(ctx context.Context) (*SyncResult, error) {
 	s.logger.Info("starting product sync")
 
-	// Update sync state to in_progress
+	// Update sync state to running
 	syncState := &domain.SyncState{
 		EntityType: "products",
-		Status:     "in_progress",
+		Status:     domain.SyncStatusRunning,
 	}
 	if err := s.syncRepo.Upsert(ctx, syncState); err != nil {
 		s.logger.Warn("failed to update sync state", "error", err)
@@ -76,7 +77,7 @@ func (s *ProductSyncer) Sync(ctx context.Context) (*SyncResult, error) {
 	// Fetch all products from Holded
 	holdedProducts, err := s.holded.ListProducts(ctx)
 	if err != nil {
-		s.updateSyncState(ctx, "failed", 0, err.Error())
+		s.updateSyncState(ctx, domain.SyncStatusFailed, 0, err.Error())
 		return nil, fmt.Errorf("fetching products from Holded: %w", err)
 	}
 
@@ -85,14 +86,14 @@ func (s *ProductSyncer) Sync(ctx context.Context) (*SyncResult, error) {
 	}
 
 	if len(holdedProducts) == 0 {
-		s.updateSyncState(ctx, "completed", 0, "")
+		s.updateSyncState(ctx, domain.SyncStatusSuccess, 0, "")
 		return result, nil
 	}
 
 	// Phase 1: Convert and batch upsert all products
 	domainProducts := s.convertProducts(holdedProducts)
 	if err := s.productRepo.UpsertBatch(ctx, domainProducts); err != nil {
-		s.updateSyncState(ctx, "failed", 0, err.Error())
+		s.updateSyncState(ctx, domain.SyncStatusFailed, 0, err.Error())
 		return nil, fmt.Errorf("batch upserting products: %w", err)
 	}
 	result.SyncedProducts = len(domainProducts)
@@ -105,10 +106,10 @@ func (s *ProductSyncer) Sync(ctx context.Context) (*SyncResult, error) {
 	result.Errors = imageResults.errors
 
 	// Update sync state
-	status := "completed"
+	status := domain.SyncStatusSuccess
 	errMsg := ""
 	if result.FailedImages > 0 {
-		status = "completed_with_errors"
+		status = domain.SyncStatusPartial
 		errMsg = fmt.Sprintf("%d images failed to sync", result.FailedImages)
 	}
 	s.updateSyncState(ctx, status, result.SyncedProducts, errMsg)
@@ -266,7 +267,7 @@ func (s *ProductSyncer) convertProducts(holdedProducts []holded.Product) []domai
 			SKU:              hp.SKU,
 			Name:             hp.Name,
 			Description:      hp.Description,
-			Category:         hp.Tags, // Use tags as category
+			Category:         strings.Join(hp.Tags, ", "), // Use tags as category
 			Price:            hp.Price,
 			TaxRate:          hp.Tax,
 			StockQuantity:    hp.Stock,
@@ -278,7 +279,7 @@ func (s *ProductSyncer) convertProducts(holdedProducts []holded.Product) []domai
 	return products
 }
 
-func (s *ProductSyncer) updateSyncState(ctx context.Context, status string, itemsSynced int, errMsg string) {
+func (s *ProductSyncer) updateSyncState(ctx context.Context, status domain.SyncStatus, itemsSynced int, errMsg string) {
 	now := time.Now()
 	state := &domain.SyncState{
 		EntityType:   "products",

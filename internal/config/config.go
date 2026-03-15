@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -15,6 +16,7 @@ type Config struct {
 	Holded  HoldedConfig
 	S3      S3Config
 	Sync    SyncConfig
+	CORS    CORSConfig
 }
 
 type ServerConfig struct {
@@ -32,8 +34,9 @@ type DatabaseConfig struct {
 }
 
 type Auth0Config struct {
-	Domain   string
-	Audience string
+	Domain    string
+	Audience  string
+	RoleClaim string // Auth0 custom claim containing roles (e.g., "https://myapp.com/roles")
 }
 
 type HoldedConfig struct {
@@ -52,15 +55,21 @@ type SyncConfig struct {
 	IntervalMinutes int
 }
 
+type CORSConfig struct {
+	AllowedOrigins []string
+}
+
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
+	env := getEnv("ENV", "development")
+
 	cfg := &Config{
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
 			Port:         getEnvInt("PORT", 8080),
 			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 10*time.Second),
-			Environment:  getEnv("ENV", "development"),
+			Environment:  env,
 		},
 		DB: DatabaseConfig{
 			URL:          getEnv("DATABASE_URL", ""),
@@ -68,8 +77,9 @@ func Load() (*Config, error) {
 			MaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 5),
 		},
 		Auth0: Auth0Config{
-			Domain:   getEnv("AUTH0_DOMAIN", ""),
-			Audience: getEnv("AUTH0_AUDIENCE", ""),
+			Domain:    getEnv("AUTH0_DOMAIN", ""),
+			Audience:  getEnv("AUTH0_AUDIENCE", ""),
+			RoleClaim: getEnv("AUTH0_ROLE_CLAIM", ""),
 		},
 		Holded: HoldedConfig{
 			APIKey:  getEnv("HOLDED_API_KEY", ""),
@@ -84,6 +94,9 @@ func Load() (*Config, error) {
 		Sync: SyncConfig{
 			IntervalMinutes: getEnvInt("SYNC_INTERVAL_MINUTES", 15),
 		},
+		CORS: CORSConfig{
+			AllowedOrigins: getCORSOrigins(env),
+		},
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -94,8 +107,34 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) validate() error {
+	var errs []string
+
+	// Always required
 	if c.DB.URL == "" {
-		return fmt.Errorf("DATABASE_URL is required")
+		errs = append(errs, "DATABASE_URL is required")
+	}
+	if c.Auth0.Domain == "" {
+		errs = append(errs, "AUTH0_DOMAIN is required")
+	}
+	if c.Auth0.Audience == "" {
+		errs = append(errs, "AUTH0_AUDIENCE is required")
+	}
+
+	// Production-only requirements
+	if c.IsProduction() {
+		if c.S3.Bucket == "" {
+			errs = append(errs, "AWS_S3_BUCKET is required in production")
+		}
+		if c.Holded.APIKey == "" {
+			errs = append(errs, "HOLDED_API_KEY is required in production")
+		}
+		if len(c.CORS.AllowedOrigins) == 0 {
+			errs = append(errs, "CORS_ALLOWED_ORIGINS is required in production")
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("config validation failed: %s", strings.Join(errs, "; "))
 	}
 	return nil
 }
@@ -133,4 +172,24 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 		}
 	}
 	return defaultValue
+}
+
+func getCORSOrigins(env string) []string {
+	if originsEnv := os.Getenv("CORS_ALLOWED_ORIGINS"); originsEnv != "" {
+		origins := strings.Split(originsEnv, ",")
+		for i, origin := range origins {
+			origins[i] = strings.TrimSpace(origin)
+		}
+		return origins
+	}
+
+	if env == "development" {
+		return []string{
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"http://localhost:8080",
+		}
+	}
+
+	return []string{}
 }

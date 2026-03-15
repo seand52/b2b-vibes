@@ -10,6 +10,7 @@ import (
 type OrderStatus string
 
 const (
+	OrderStatusDraft     OrderStatus = "draft"
 	OrderStatusPending   OrderStatus = "pending"
 	OrderStatusApproved  OrderStatus = "approved"
 	OrderStatusRejected  OrderStatus = "rejected"
@@ -26,6 +27,7 @@ func (s OrderStatus) IsTerminal() bool {
 // CanTransitionTo returns true if the order can transition to the target status
 func (s OrderStatus) CanTransitionTo(target OrderStatus) bool {
 	transitions := map[OrderStatus][]OrderStatus{
+		OrderStatusDraft:     {OrderStatusPending, OrderStatusCancelled},
 		OrderStatusPending:   {OrderStatusApproved, OrderStatusRejected, OrderStatusCancelled},
 		OrderStatusApproved:  {OrderStatusShipped, OrderStatusCancelled},
 		OrderStatusShipped:   {OrderStatusDelivered},
@@ -59,6 +61,7 @@ type Order struct {
 	ApprovedBy      *string     `json:"approved_by,omitempty"`
 	RejectedAt      *time.Time  `json:"rejected_at,omitempty"`
 	RejectionReason *string     `json:"rejection_reason,omitempty"`
+	SubmittedAt     *time.Time  `json:"submitted_at,omitempty"`
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at"`
 	Items           []OrderItem `json:"items,omitempty"`
@@ -70,11 +73,23 @@ type OrderItem struct {
 	OrderID   uuid.UUID `json:"order_id"`
 	ProductID uuid.UUID `json:"product_id"`
 	Quantity  int       `json:"quantity"`
+	UnitPrice *float64  `json:"unit_price,omitempty"`
+	LineTotal *float64  `json:"line_total,omitempty"`
 }
 
 // IsCancellable returns true if the order can be cancelled by the client
 func (o *Order) IsCancellable() bool {
-	return o.Status == OrderStatusPending
+	return o.Status == OrderStatusPending || o.Status == OrderStatusDraft
+}
+
+// IsDraft returns true if order is in draft status
+func (o *Order) IsDraft() bool {
+	return o.Status == OrderStatusDraft
+}
+
+// IsEditable returns true if order can be modified (only drafts)
+func (o *Order) IsEditable() bool {
+	return o.Status == OrderStatusDraft
 }
 
 // IsApprovable returns true if the order can be approved by admin

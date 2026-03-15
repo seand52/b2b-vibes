@@ -38,6 +38,7 @@ type ProductImageRepository interface {
 // ClientRepository handles client data access
 type ClientRepository interface {
 	Upsert(ctx context.Context, client *domain.Client) error
+	UpsertBatch(ctx context.Context, clients []domain.Client) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Client, error)
 	GetByHoldedID(ctx context.Context, holdedID string) (*domain.Client, error)
 	GetByEmail(ctx context.Context, email string) (*domain.Client, error)
@@ -64,6 +65,12 @@ type OrderRepository interface {
 	SetHoldedInvoiceID(ctx context.Context, id uuid.UUID, invoiceID string) error
 	Approve(ctx context.Context, id uuid.UUID, approvedBy string, holdedInvoiceID string) error
 	Reject(ctx context.Context, id uuid.UUID, reason string) error
+
+	// Cart-specific methods
+	GetDraftByClientID(ctx context.Context, clientID uuid.UUID) (*domain.Order, error)
+	UpdateItems(ctx context.Context, orderID uuid.UUID, items []domain.OrderItem) error
+	UpdateNotes(ctx context.Context, orderID uuid.UUID, notes string) error
+	SubmitDraft(ctx context.Context, orderID uuid.UUID, items []domain.OrderItem) error
 }
 
 // OrderFilter holds filtering options for order queries

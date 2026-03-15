@@ -1,0 +1,485 @@
+{
+	"info": {
+		"_postman_id": "b2b-orders-api-collection",
+		"name": "B2B Orders API",
+		"description": "API collection for B2B wholesale ordering backend.\n\n## Setup\n1. Set your Auth0 variables in the collection variables\n2. Click 'Get New Access Token' in the Authorization tab\n3. Login with your Auth0 user\n4. Use Token",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "oauth2",
+		"oauth2": [
+			{
+				"key": "grant_type",
+				"value": "authorization_code_with_pkce",
+				"type": "string"
+			},
+			{
+				"key": "authUrl",
+				"value": "https://{{auth0_domain}}/authorize",
+				"type": "string"
+			},
+			{
+				"key": "accessTokenUrl",
+				"value": "https://{{auth0_domain}}/oauth/token",
+				"type": "string"
+			},
+			{
+				"key": "clientId",
+				"value": "{{auth0_client_id}}",
+				"type": "string"
+			},
+			{
+				"key": "scope",
+				"value": "openid profile email",
+				"type": "string"
+			},
+			{
+				"key": "useBrowser",
+				"value": true,
+				"type": "boolean"
+			},
+			{
+				"key": "audience",
+				"value": "{{auth0_audience}}",
+				"type": "string"
+			},
+			{
+				"key": "tokenName",
+				"value": "Auth0 Token",
+				"type": "string"
+			},
+			{
+				"key": "challengeAlgorithm",
+				"value": "S256",
+				"type": "string"
+			},
+			{
+				"key": "redirect_uri",
+				"value": "https://oauth.pstmn.io/v1/callback",
+				"type": "string"
+			},
+			{
+				"key": "addTokenTo",
+				"value": "header",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "auth0_domain",
+			"value": "YOUR_TENANT.auth0.com",
+			"type": "string",
+			"description": "Your Auth0 tenant domain (e.g., myapp.auth0.com)"
+		},
+		{
+			"key": "auth0_client_id",
+			"value": "",
+			"type": "string",
+			"description": "Client ID from your Auth0 SPA application"
+		},
+		{
+			"key": "auth0_audience",
+			"value": "https://b2b-orders-api",
+			"type": "string",
+			"description": "API Identifier from Auth0 (must match AUTH0_AUDIENCE in .env)"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Public health check endpoint - no authentication required"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Products (Client)",
+			"item": [
+				{
+					"name": "List Products",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.length > 0) {",
+									"        pm.collectionVariables.set('product_id', jsonData[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "products"],
+							"query": [
+								{
+									"key": "category",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "active",
+									"value": "true",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all products. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/{{product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "products", "{{product_id}}"]
+						},
+						"description": "Get a single product by ID with images"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Orders (Client)",
+			"item": [
+				{
+					"name": "Create Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('order_id', jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id}}\",\n            \"quantity\": 2\n        }\n    ],\n    \"notes\": \"Please deliver before Friday\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "orders"]
+						},
+						"description": "Create a new order. The client is identified from the JWT token."
+					},
+					"response": []
+				},
+				{
+					"name": "List My Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "orders"],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List orders for the authenticated client"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/orders/{{order_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "orders", "{{order_id}}"]
+						},
+						"description": "Get a single order by ID (must belong to authenticated client)"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/orders/{{order_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "orders", "{{order_id}}", "cancel"]
+						},
+						"description": "Cancel a pending order"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - Orders",
+			"item": [
+				{
+					"name": "List All Orders",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.length > 0) {",
+									"        pm.collectionVariables.set('order_id', jsonData[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "orders"],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all orders (admin only). Can filter by status."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/orders/{{order_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "orders", "{{order_id}}"]
+						},
+						"description": "Get any order by ID (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"approved_by\": \"admin@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/orders/{{order_id}}/approve",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "orders", "{{order_id}}", "approve"]
+						},
+						"description": "Approve an order and create a Holded invoice"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Out of stock\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/orders/{{order_id}}/reject",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "orders", "{{order_id}}", "reject"]
+						},
+						"description": "Reject an order with a reason"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - Clients",
+			"item": [
+				{
+					"name": "List Clients",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.length > 0) {",
+									"        pm.collectionVariables.set('client_id', jsonData[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/clients",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "clients"],
+							"query": [
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "active",
+									"value": "true",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all clients (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/clients/{{client_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "clients", "{{client_id}}"]
+						},
+						"description": "Get a single client by ID (admin only)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - Sync",
+			"item": [
+				{
+					"name": "Sync Products",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/sync/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "sync", "products"]
+						},
+						"description": "Trigger a manual sync of products from Holded"
+					},
+					"response": []
+				},
+				{
+					"name": "Sync Clients",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/admin/sync/clients",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "admin", "sync", "clients"]
+						},
+						"description": "Trigger a manual sync of clients from Holded"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
