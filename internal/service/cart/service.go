@@ -86,16 +86,17 @@ func NewService(
 	}
 }
 
-// GetOrCreateDraft gets the client's existing draft order or creates a new one
-func (s *Service) GetOrCreateDraft(ctx context.Context, clientID uuid.UUID) (*domain.Order, error) {
+// GetOrCreateDraft gets the client's existing draft order or creates a new one.
+// Returns the draft and a boolean indicating if it was newly created.
+func (s *Service) GetOrCreateDraft(ctx context.Context, clientID uuid.UUID) (*domain.Order, bool, error) {
 	// Try to get existing draft
 	draft, err := s.orderRepo.GetDraftByClientID(ctx, clientID)
 	if err == nil {
-		return draft, nil
+		return draft, false, nil
 	}
 
 	if !errors.Is(err, repository.ErrNotFound) {
-		return nil, fmt.Errorf("looking up draft: %w", err)
+		return nil, false, fmt.Errorf("looking up draft: %w", err)
 	}
 
 	// Create new draft order
@@ -107,7 +108,7 @@ func (s *Service) GetOrCreateDraft(ctx context.Context, clientID uuid.UUID) (*do
 	}
 
 	if err := s.orderRepo.Create(ctx, draft); err != nil {
-		return nil, fmt.Errorf("creating draft order: %w", err)
+		return nil, false, fmt.Errorf("creating draft order: %w", err)
 	}
 
 	s.logger.Info("draft order created",
@@ -115,7 +116,7 @@ func (s *Service) GetOrCreateDraft(ctx context.Context, clientID uuid.UUID) (*do
 		"client_id", clientID,
 	)
 
-	return draft, nil
+	return draft, true, nil
 }
 
 // GetDraftWithDetails gets the cart with enriched product info and pricing
@@ -209,7 +210,7 @@ func (s *Service) AddItem(ctx context.Context, clientID, productID uuid.UUID, qu
 	}
 
 	// Get or create draft
-	draft, err := s.GetOrCreateDraft(ctx, clientID)
+	draft, _, err := s.GetOrCreateDraft(ctx, clientID)
 	if err != nil {
 		return err
 	}
@@ -326,7 +327,7 @@ func (s *Service) SetItems(ctx context.Context, clientID uuid.UUID, items []Item
 	}
 
 	// Get or create draft
-	draft, err := s.GetOrCreateDraft(ctx, clientID)
+	draft, _, err := s.GetOrCreateDraft(ctx, clientID)
 	if err != nil {
 		return err
 	}

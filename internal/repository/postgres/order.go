@@ -38,19 +38,23 @@ func (r *OrderRepository) Create(ctx context.Context, order *domain.Order) error
 	if order.ID == uuid.Nil {
 		order.ID = uuid.New()
 	}
-	order.Status = domain.OrderStatusPending
+	// Preserve the status set by the caller (draft for carts, pending for direct orders)
+	if order.Status == "" {
+		order.Status = domain.OrderStatusPending
+	}
 	order.CreatedAt = now
 	order.UpdatedAt = now
 
 	orderQuery := `
-		INSERT INTO orders (id, client_id, status, notes, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+		INSERT INTO orders (id, client_id, status, notes, admin_notes, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 	_, err = tx.Exec(ctx, orderQuery,
 		order.ID,
 		order.ClientID,
 		order.Status,
 		order.Notes,
+		order.AdminNotes, // Defaults to empty string, not NULL
 		order.CreatedAt,
 		order.UpdatedAt,
 	)

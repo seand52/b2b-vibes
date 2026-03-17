@@ -23,9 +23,10 @@ func TestService_GetOrCreateDraft_CreatesNewDraft(t *testing.T) {
 	productRepo := &testutil.MockProductRepo{}
 
 	svc := NewService(orderRepo, productRepo, testutil.NewDiscardLogger())
-	draft, err := svc.GetOrCreateDraft(context.Background(), clientID)
+	draft, isNew, err := svc.GetOrCreateDraft(context.Background(), clientID)
 
 	require.NoError(t, err)
+	assert.True(t, isNew)
 	assert.NotNil(t, draft)
 	assert.Equal(t, clientID, draft.ClientID)
 	assert.Equal(t, domain.OrderStatusDraft, draft.Status)
@@ -53,9 +54,10 @@ func TestService_GetOrCreateDraft_ReturnsExistingDraft(t *testing.T) {
 	productRepo := &testutil.MockProductRepo{}
 
 	svc := NewService(orderRepo, productRepo, testutil.NewDiscardLogger())
-	draft, err := svc.GetOrCreateDraft(context.Background(), clientID)
+	draft, isNew, err := svc.GetOrCreateDraft(context.Background(), clientID)
 
 	require.NoError(t, err)
+	assert.False(t, isNew)
 	assert.Equal(t, draftID, draft.ID)
 	assert.Len(t, draft.Items, 1)
 }

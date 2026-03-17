@@ -91,7 +91,7 @@ func (h *CartHandler) CreateCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	draft, err := h.cartService.GetOrCreateDraft(ctx, client.ID)
+	_, isNew, err := h.cartService.GetOrCreateDraft(ctx, client.ID)
 	if err != nil {
 		h.logger.Error("failed to create cart", "error", err)
 		apierrors.Internal(w)
@@ -107,11 +107,9 @@ func (h *CartHandler) CreateCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if draft.CreatedAt.Equal(draft.UpdatedAt) {
-		// New cart created
+	if isNew {
 		w.WriteHeader(http.StatusCreated)
 	} else {
-		// Existing cart returned
 		w.WriteHeader(http.StatusOK)
 	}
 	json.NewEncoder(w).Encode(cartResp)

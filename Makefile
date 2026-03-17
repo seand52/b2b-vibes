@@ -1,4 +1,4 @@
-.PHONY: run build test migrate-up migrate-down migrate-create
+.PHONY: run build test test-integration test-all migrate-up migrate-down migrate-create migrate-force migrate-version
 
 # Load .env file if it exists
 ifneq (,$(wildcard .env))
@@ -15,6 +15,12 @@ build:
 
 test:
 	CGO_ENABLED=0 go test ./...
+
+test-integration:
+	CGO_ENABLED=0 go test -tags=integration -v ./internal/integration/...
+
+test-all:
+	CGO_ENABLED=0 go test -tags=integration ./...
 
 # Database migrations (requires: brew install golang-migrate)
 migrate-up:
