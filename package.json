@@ -1,0 +1,17 @@
+{
+  "name": "b2b-orders",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "backend:dev": "cd backend && make run",
+    "backend:test": "cd backend && make test",
+    "backend:build": "cd backend && make build"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
+  }
+}

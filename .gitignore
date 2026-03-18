@@ -1,5 +1,7 @@
 # Environment variables (contains secrets)
 .env
+.env.local
+.env*.local
 
 # Binary output
 bin/
@@ -14,7 +16,18 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
-node_modules
+
+# Node
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Turbo
+.turbo/
+
 # Test coverage
 coverage.out
 coverage.html
@@ -22,3 +35,4 @@ coverage.html
 # Temporary files
 *.tmp
 *.log
+apps/web/.git.bak
