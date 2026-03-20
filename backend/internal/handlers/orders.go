@@ -59,7 +59,9 @@ type orderResponse struct {
 	RejectedAt      *time.Time          `json:"rejected_at,omitempty"`
 	RejectionReason *string             `json:"rejection_reason,omitempty"`
 	CreatedAt       time.Time           `json:"created_at"`
-	Items           []orderItemResponse `json:"items"`
+	ItemCount       int                 `json:"item_count,omitempty"`
+	TotalQuantity   int                 `json:"total_quantity,omitempty"`
+	Items           []orderItemResponse `json:"items,omitempty"`
 }
 
 type orderItemResponse struct {
@@ -77,6 +79,8 @@ func toOrderResponse(o *domain.Order) orderResponse {
 		RejectedAt:      o.RejectedAt,
 		RejectionReason: o.RejectionReason,
 		CreatedAt:       o.CreatedAt,
+		ItemCount:       o.ItemCount,
+		TotalQuantity:   o.TotalQuantity,
 		Items:           make([]orderItemResponse, 0, len(o.Items)),
 	}
 

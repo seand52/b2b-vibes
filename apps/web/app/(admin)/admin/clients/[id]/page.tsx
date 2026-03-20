@@ -21,11 +21,7 @@ export default function AdminClientDetailPage() {
   const clientId = params.id as string;
 
   const { data: client, isLoading, error } = useAdminClient(clientId);
-  // TODO: Filter orders by client ID when backend supports it
-  const { data: allOrders } = useAdminOrders();
-
-  // Filter client's orders (this should be done server-side)
-  const clientOrders = allOrders; // For now, show all - backend filtering needed
+  const { data: clientOrders } = useAdminOrders({ client_id: clientId });
 
   if (isLoading) {
     return (
@@ -207,7 +203,7 @@ export default function AdminClientDetailPage() {
                         <OrderStatusBadge status={order.status} />
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {order.items.length} item{order.items.length !== 1 ? 's' : ''} •{' '}
+                        {order.item_count} item{order.item_count !== 1 ? 's' : ''} •{' '}
                         {new Date(order.created_at).toLocaleDateString()}
                       </p>
                     </div>

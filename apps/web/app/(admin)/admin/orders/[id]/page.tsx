@@ -212,7 +212,7 @@ export default function AdminOrderDetailPage() {
           <CardHeader>
             <CardTitle>Order Items</CardTitle>
             <CardDescription>
-              {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+              {order.item_count} item{order.item_count !== 1 ? 's' : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>

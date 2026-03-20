@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Trash2, ShoppingBag } from 'lucide-react';
@@ -35,10 +35,12 @@ export default function CartPage() {
   const [notes, setNotes] = useState('');
   const [isNotesChanged, setIsNotesChanged] = useState(false);
 
-  // Update local notes when cart loads
-  if (cart && !isNotesChanged && cart.notes !== notes) {
-    setNotes(cart.notes || '');
-  }
+  // Initialize notes from cart on first load
+  useEffect(() => {
+    if (cart && !isNotesChanged) {
+      setNotes(cart.notes || '');
+    }
+  }, [cart?.id]); // Only sync when cart changes
 
   const handleNotesChange = (value: string) => {
     setNotes(value);

@@ -75,10 +75,11 @@ type OrderRepository interface {
 
 // OrderFilter holds filtering options for order queries
 type OrderFilter struct {
-	Status   domain.OrderStatus
-	ClientID *uuid.UUID
-	Limit    int
-	Offset   int
+	Status         domain.OrderStatus
+	ExcludeStatuses []domain.OrderStatus
+	ClientID       *uuid.UUID
+	Limit          int
+	Offset         int
 }
 
 // SyncStateRepository handles sync state data access

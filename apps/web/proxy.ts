@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { auth0, extractRoles, hasAdminRole } from '@/lib/auth/config';
+import { auth0, extractRolesFromAccessToken, hasAdminRole } from '@/lib/auth/config';
 
 // Routes that require authentication
 const protectedRoutes = ['/products', '/cart', '/orders', '/admin'];
@@ -40,11 +40,10 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
       }
 
-      // For admin routes, check admin role
+      // For admin routes, check admin role from access token
       if (isAdminRoute) {
-        // In Auth0 SDK v4, user claims are available directly on session.user
-        const claims = session.user as Record<string, unknown>;
-        const roles = extractRoles(claims);
+        const accessToken = session.tokenSet.accessToken;
+        const roles = extractRolesFromAccessToken(accessToken);
 
         if (!hasAdminRole(roles)) {
           // Non-admin trying to access admin route, redirect to products

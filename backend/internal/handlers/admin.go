@@ -50,10 +50,17 @@ func (h *AdminHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Parse filters
-	statusParam := r.URL.Query().Get("status")
 	filter := repository.OrderFilter{}
-	if statusParam != "" {
+	if statusParam := r.URL.Query().Get("status"); statusParam != "" {
 		filter.Status = domain.OrderStatus(statusParam)
+	}
+	if clientIDParam := r.URL.Query().Get("client_id"); clientIDParam != "" {
+		clientID, err := uuid.Parse(clientIDParam)
+		if err != nil {
+			apierrors.BadRequest(w, "invalid client_id")
+			return
+		}
+		filter.ClientID = &clientID
 	}
 
 	orders, err := h.orderService.ListAll(ctx, filter)

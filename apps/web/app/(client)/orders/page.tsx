@@ -85,7 +85,7 @@ export default function OrdersPage() {
                     <OrderStatusBadge status={order.status} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {order.items.length} item{order.items.length !== 1 ? 's' : ''} •{' '}
+                    {order.item_count} item{order.item_count !== 1 ? 's' : ''} •{' '}
                     {new Date(order.created_at).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',

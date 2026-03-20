@@ -94,7 +94,7 @@ export default function AdminOrdersPage() {
                     #{order.id.slice(0, 8)}
                   </TableCell>
                   <TableCell>
-                    {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                    {order.item_count} item{order.item_count !== 1 ? 's' : ''}
                   </TableCell>
                   <TableCell>
                     <OrderStatusBadge status={order.status} />

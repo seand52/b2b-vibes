@@ -21,7 +21,7 @@ export function ClientHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
+      <div className="container mx-auto flex h-16 items-center px-4 lg:px-8">
         <div className="mr-8">
           <Link href="/products" className="flex items-center space-x-2">
             <span className="text-xl font-bold">B2B Orders</span>

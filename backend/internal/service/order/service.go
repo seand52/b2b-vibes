@@ -132,8 +132,10 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, err
 	return s.orderRepo.GetByID(ctx, id)
 }
 
-// ListByClient retrieves orders for a specific client
+// ListByClient retrieves orders for a specific client (excludes draft/cart orders)
 func (s *Service) ListByClient(ctx context.Context, clientID uuid.UUID, filter repository.OrderFilter) ([]domain.Order, error) {
+	// Always exclude draft orders from the orders list - drafts are carts, not orders
+	filter.ExcludeStatuses = append(filter.ExcludeStatuses, domain.OrderStatusDraft)
 	return s.orderRepo.ListByClientID(ctx, clientID, filter)
 }
 

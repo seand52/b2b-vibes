@@ -276,6 +276,7 @@ export function useDiscardCart() {
 
 interface OrdersFilter {
   status?: string;
+  client_id?: string;
 }
 
 export function useOrders(
@@ -326,6 +327,7 @@ export function useAdminOrders(
 ) {
   const params = new URLSearchParams();
   if (filter?.status) params.set('status', filter.status);
+  if (filter?.client_id) params.set('client_id', filter.client_id);
   const queryString = params.toString();
 
   return useQuery({

@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
                   <div>
                     <p className="font-medium">Order #{order.id.slice(0, 8)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {order.items.length} items •{' '}
+                      {order.item_count} items •{' '}
                       {new Date(order.created_at).toLocaleDateString()}
                     </p>
                   </div>

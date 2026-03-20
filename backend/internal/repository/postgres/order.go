@@ -160,6 +160,49 @@ func (r *OrderRepository) getOrderItems(ctx context.Context, orderID uuid.UUID) 
 	return items, nil
 }
 
+// getItemsForOrders fetches items for multiple orders in a single query
+func (r *OrderRepository) getItemsForOrders(ctx context.Context, orderIDs []uuid.UUID) (map[uuid.UUID][]domain.OrderItem, error) {
+	if len(orderIDs) == 0 {
+		return make(map[uuid.UUID][]domain.OrderItem), nil
+	}
+
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(orderIDs))
+	args := make([]any, len(orderIDs))
+	for i, id := range orderIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, order_id, product_id, quantity
+		FROM order_items
+		WHERE order_id IN (%s)`, strings.Join(placeholders, ", "))
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("querying order items: %w", err)
+	}
+	defer rows.Close()
+
+	itemsByOrderID := make(map[uuid.UUID][]domain.OrderItem)
+	for rows.Next() {
+		var item domain.OrderItem
+		err := rows.Scan(
+			&item.ID,
+			&item.OrderID,
+			&item.ProductID,
+			&item.Quantity,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning order item: %w", err)
+		}
+		itemsByOrderID[item.OrderID] = append(itemsByOrderID[item.OrderID], item)
+	}
+
+	return itemsByOrderID, nil
+}
+
 // ListByClientID retrieves orders for a specific client
 func (r *OrderRepository) ListByClientID(ctx context.Context, clientID uuid.UUID, filter repository.OrderFilter) ([]domain.Order, error) {
 	filter.ClientID = &clientID
@@ -173,24 +216,40 @@ func (r *OrderRepository) List(ctx context.Context, filter repository.OrderFilte
 	argIdx := 1
 
 	if filter.ClientID != nil {
-		conditions = append(conditions, fmt.Sprintf("client_id = $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("o.client_id = $%d", argIdx))
 		args = append(args, *filter.ClientID)
 		argIdx++
 	}
 
 	if filter.Status != "" {
-		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("o.status = $%d", argIdx))
 		args = append(args, filter.Status)
 		argIdx++
 	}
 
-	query := `SELECT id, client_id, status, notes, admin_notes, holded_invoice_id, approved_at, approved_by, rejected_at, rejection_reason, created_at, updated_at FROM orders`
+	if len(filter.ExcludeStatuses) > 0 {
+		placeholders := make([]string, len(filter.ExcludeStatuses))
+		for i, status := range filter.ExcludeStatuses {
+			placeholders[i] = fmt.Sprintf("$%d", argIdx)
+			args = append(args, status)
+			argIdx++
+		}
+		conditions = append(conditions, fmt.Sprintf("o.status NOT IN (%s)", strings.Join(placeholders, ", ")))
+	}
+
+	query := `
+		SELECT o.id, o.client_id, o.status, o.notes, o.admin_notes, o.holded_invoice_id,
+		       o.approved_at, o.approved_by, o.rejected_at, o.rejection_reason,
+		       o.created_at, o.updated_at,
+		       (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count,
+		       (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) as total_quantity
+		FROM orders o`
 
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	query += " ORDER BY created_at DESC"
+	query += " ORDER BY o.created_at DESC"
 
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", filter.Limit)
@@ -221,6 +280,8 @@ func (r *OrderRepository) List(ctx context.Context, filter repository.OrderFilte
 			&o.RejectionReason,
 			&o.CreatedAt,
 			&o.UpdatedAt,
+			&o.ItemCount,
+			&o.TotalQuantity,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning order row: %w", err)

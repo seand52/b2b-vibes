@@ -79,6 +79,8 @@ export interface Order {
   rejection_reason?: string;
   created_at: string;
   items: OrderItem[];
+  item_count: number;
+  total_quantity: number;
 }
 
 // Client types
