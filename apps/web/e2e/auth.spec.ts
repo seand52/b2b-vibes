@@ -10,15 +10,15 @@ test.describe('Authentication', () => {
     // Wait for navigation to complete
     await page.waitForLoadState('networkidle');
 
-    // Expect redirect to Auth0 login endpoint
-    // Auth0 middleware should redirect to /api/auth/login
+    // Expect redirect to Auth0 login page
+    // Auth0 middleware redirects to Auth0's Universal Login
     const currentUrl = page.url();
-    expect(currentUrl).toContain('/api/auth/login');
+    expect(currentUrl).toMatch(/auth0\.com|\/auth\/login/);
   });
 
   test('authenticated user can access protected routes', async ({ clientPage }) => {
-    // Use clientPage fixture which has Auth0 session mocked
-    // Mock the products API to return empty array
+    // clientPage has real Auth0 session from global setup
+    // Mock the products API to return empty array (backend not running)
     await mockProductsAPI(clientPage, []);
 
     // Navigate to protected route

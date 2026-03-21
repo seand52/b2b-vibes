@@ -2,6 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env.CI;
 
+// Common launch options for NixOS compatibility
+const launchOptions = {
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+};
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -14,6 +19,9 @@ export default defineConfig({
     ...(isCI ? [['github'] as const] : []),
   ],
 
+  // Global setup - runs once before all tests to authenticate
+  globalSetup: './e2e/global.setup.ts',
+
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -24,26 +32,23 @@ export default defineConfig({
   },
 
   projects: [
-    // Client user tests
+    // Client user tests (most tests)
     {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Use system chromium on NixOS via PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH env var
-        launchOptions: {
-          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-        },
+        launchOptions,
       },
+      // Exclude admin-specific tests
+      testIgnore: /admin\.spec\.ts/,
     },
 
-    // Admin tests (same browser, different test files)
+    // Admin tests
     {
       name: 'chromium-admin',
       use: {
         ...devices['Desktop Chrome'],
-        launchOptions: {
-          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-        },
+        launchOptions,
       },
       testMatch: /admin\.spec\.ts/,
     },

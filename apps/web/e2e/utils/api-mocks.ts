@@ -168,6 +168,85 @@ export async function mockCartItemsAPI(
   });
 }
 
+// Stateful cart mock - allows updating cart data dynamically
+export interface CartMockState {
+  cart: CartResponse | null;
+  updateCart: (newCart: CartResponse | null) => void;
+}
+
+export async function createStatefulCartMock(
+  page: Page,
+  initialCart: CartResponse | null
+): Promise<CartMockState> {
+  const state = { cart: initialCart };
+
+  // Single route handler that reads from mutable state
+  await page.route('**/api/v1/cart', async (route) => {
+    const method = route.request().method();
+
+    if (method === 'GET') {
+      if (state.cart === null) {
+        await route.fulfill({ status: 404 });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(state.cart),
+      });
+    } else if (method === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(state.cart),
+      });
+    } else if (method === 'DELETE') {
+      state.cart = null;
+      await route.fulfill({ status: 204 });
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Match both /cart/items and /cart/items/{id}
+  await page.route('**/api/v1/cart/items/**', async (route) => {
+    const method = route.request().method();
+
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(state.cart),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  await page.route('**/api/v1/cart/items', async (route) => {
+    const method = route.request().method();
+
+    if (method === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(state.cart),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  return {
+    get cart() {
+      return state.cart;
+    },
+    updateCart: (newCart: CartResponse | null) => {
+      state.cart = newCart;
+    },
+  };
+}
+
 export async function mockCartSubmitAPI(
   page: Page,
   order: Order

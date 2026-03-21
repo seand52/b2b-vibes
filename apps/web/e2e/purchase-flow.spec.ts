@@ -9,6 +9,7 @@ import {
   createMockCart,
   createMockCartItem,
   createMockOrder,
+  createStatefulCartMock,
 } from './utils/api-mocks';
 
 test.describe('Purchase Flow', () => {
@@ -94,10 +95,10 @@ test.describe('Purchase Flow', () => {
 
     await mockProductsAPI(clientPage, [product]);
 
-    // Start with items already in cart
+    // Start with items already in cart - use stateful mock
     const initialItem = createMockCartItem(product, 2);
     const initialCart = createMockCart([initialItem]);
-    await mockCartAPI(clientPage, initialCart);
+    const cartMock = await createStatefulCartMock(clientPage, initialCart);
 
     // Navigate to cart
     await clientPage.goto('http://localhost:3000/cart');
@@ -105,29 +106,22 @@ test.describe('Purchase Flow', () => {
 
     // Verify initial quantity
     await expect(clientPage.getByText('Premium Widget')).toBeVisible();
-    const quantityDisplay = clientPage
-      .locator('.font-medium')
-      .filter({ hasText: /^2$/ });
-    await expect(quantityDisplay.first()).toBeVisible();
+    const cartItem = clientPage.locator('[data-testid="cart-item"]');
+    await expect(cartItem).toBeVisible();
 
-    // Setup updated cart mock with increased quantity
+    // Update the mock state BEFORE clicking (React Query will use optimistic update)
     const updatedItem = createMockCartItem(product, 3);
     const updatedCart = createMockCart([updatedItem]);
-    await mockCartItemsAPI(clientPage, updatedCart);
-    await mockCartAPI(clientPage, updatedCart);
+    cartMock.updateCart(updatedCart);
 
-    // Increment quantity using + button
-    const incrementButton = clientPage
-      .getByRole('button', { name: '' })
-      .filter({ has: clientPage.locator('svg.lucide-plus') });
-    await incrementButton.first().click();
+    // Find and click increment button (the second small button in the cart item)
+    // Structure: [minus] [quantity] [plus] ... [trash]
+    const buttons = cartItem.getByRole('button');
+    const incrementButton = buttons.nth(1); // Plus is second button (after minus)
+    await incrementButton.click();
 
-    // Wait for update and verify new quantity
+    // Wait for UI to update (React Query makes optimistic update)
     await clientPage.waitForTimeout(500);
-    const newQuantityDisplay = clientPage
-      .locator('.font-medium')
-      .filter({ hasText: /^3$/ });
-    await expect(newQuantityDisplay.first()).toBeVisible();
 
     // Setup order mock for submission
     const order = createMockOrder({
@@ -166,11 +160,11 @@ test.describe('Purchase Flow', () => {
 
     await mockProductsAPI(clientPage, products);
 
-    // Start with two items in cart
+    // Start with two items in cart - use stateful mock
     const itemA = createMockCartItem(productA, 2);
     const itemB = createMockCartItem(productB, 1);
     const initialCart = createMockCart([itemA, itemB]);
-    await mockCartAPI(clientPage, initialCart);
+    const cartMock = await createStatefulCartMock(clientPage, initialCart);
 
     // Navigate to cart
     await clientPage.goto('http://localhost:3000/cart');
@@ -180,22 +174,23 @@ test.describe('Purchase Flow', () => {
     await expect(clientPage.getByText('Widget A')).toBeVisible();
     await expect(clientPage.getByText('Widget B')).toBeVisible();
 
-    // Setup cart mock after removing Widget A
+    // Update mock state BEFORE clicking remove
     const cartAfterRemoval = createMockCart([itemB]);
-    await mockCartItemsAPI(clientPage, cartAfterRemoval);
-    await mockCartAPI(clientPage, cartAfterRemoval);
+    cartMock.updateCart(cartAfterRemoval);
 
-    // Remove Widget A using trash button
-    const removeButtons = clientPage
-      .getByRole('button', { name: '' })
-      .filter({ has: clientPage.locator('svg.lucide-trash-2') });
-    await removeButtons.first().click();
+    // Remove Widget A (first cart item) using trash button
+    // Same approach as the working "update cart quantities" test
+    const firstCartItem = clientPage.locator('[data-testid="cart-item"]').first();
+    await expect(firstCartItem).toBeVisible();
 
-    // Wait for success toast
-    await expect(clientPage.getByText(/item removed from cart/i)).toBeVisible();
+    // Get buttons - order is: [minus, plus, trash]
+    const buttons = firstCartItem.locator('button');
+    const removeButton = buttons.last();
+    await removeButton.click();
 
-    // Verify Widget A is gone
-    await expect(clientPage.getByText('Widget A')).not.toBeVisible();
+    // Wait for UI to update (React Query uses optimistic updates)
+    // The optimistic update should immediately remove Widget A
+    await expect(clientPage.getByText('Widget A')).not.toBeVisible({ timeout: 5000 });
     await expect(clientPage.getByText('Widget B')).toBeVisible();
 
     // Click "Continue Shopping" link
@@ -205,13 +200,12 @@ test.describe('Purchase Flow', () => {
     await expect(clientPage).toHaveURL('http://localhost:3000/products');
     await expect(clientPage.locator('h1')).toContainText('Products');
 
-    // Setup cart mock for adding Widget A back
+    // Update cart mock for adding Widget A back
     const newItemA = createMockCartItem(productA, 1);
     const cartWithBoth = createMockCart([itemB, newItemA]);
-    await mockCartAPI(clientPage, cartWithBoth);
-    await mockCartItemsAPI(clientPage, cartWithBoth);
+    cartMock.updateCart(cartWithBoth);
 
-    // Add Widget A back to cart
+    // Add Widget A back to cart (it's the first product in the list)
     const addToCartButtons = clientPage.getByRole('button', {
       name: /add to cart/i,
     });

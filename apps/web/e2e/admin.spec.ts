@@ -74,8 +74,10 @@ test.describe('Admin Order Workflow', () => {
     expect(currentUrl).not.toBe('http://localhost:3000/admin/orders');
 
     // Common redirect targets - check for at least one
+    // Per proxy.ts, non-admin users are redirected to /products
     const isRedirectedAway =
       currentUrl === 'http://localhost:3000/' ||
+      currentUrl.includes('/products') ||
       currentUrl.includes('/unauthorized') ||
       currentUrl.includes('/403') ||
       currentUrl.includes('/api/auth/login');

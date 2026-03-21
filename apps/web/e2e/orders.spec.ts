@@ -55,7 +55,8 @@ test.describe('Order Management', () => {
     // Verify order detail page
     await expect(clientPage).toHaveURL(/\/orders\/11111111-1111-1111-1111-111111111111/);
     await expect(clientPage.locator('h1')).toContainText('Order #11111111');
-    await expect(clientPage.getByText('Pending')).toBeVisible();
+    // Use first() since status badge may appear multiple times
+    await expect(clientPage.getByText('Pending').first()).toBeVisible();
     await expect(clientPage.getByText('Order Items')).toBeVisible();
   });
 
@@ -82,7 +83,7 @@ test.describe('Order Management', () => {
 
     // Verify page loaded
     await expect(clientPage.locator('h1')).toContainText('Order #44444444');
-    await expect(clientPage.getByText('Pending')).toBeVisible();
+    await expect(clientPage.getByText('Pending').first()).toBeVisible();
 
     // Click cancel button to open dialog
     await clientPage.getByRole('button', { name: /cancel order/i }).click();
