@@ -204,7 +204,7 @@ export default function CartPage() {
           </div>
 
           <div>
-            <Card className="sticky top-24">
+            <Card className="sticky top-24" data-testid="order-summary">
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
@@ -240,6 +240,7 @@ export default function CartPage() {
                   size="lg"
                   onClick={handleSubmitOrder}
                   disabled={submitCart.isPending}
+                  data-testid="submit-order-btn"
                 >
                   {submitCart.isPending ? 'Submitting...' : 'Submit Order'}
                 </Button>

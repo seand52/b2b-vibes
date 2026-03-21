@@ -141,13 +141,14 @@ export default function AdminOrderDetailPage() {
                 onClick={handleApprove}
                 disabled={approveOrder.isPending}
                 className="bg-green-600 hover:bg-green-700"
+                data-testid="approve-btn"
               >
                 <Check className="mr-2 h-4 w-4" />
                 {approveOrder.isPending ? 'Approving...' : 'Approve'}
               </Button>
 
               <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-                <DialogTrigger render={<Button variant="destructive" />}>
+                <DialogTrigger render={<Button variant="destructive" data-testid="reject-btn" />}>
                   <X className="mr-2 h-4 w-4" />
                   Reject
                 </DialogTrigger>
@@ -182,6 +183,7 @@ export default function AdminOrderDetailPage() {
                       variant="destructive"
                       onClick={handleReject}
                       disabled={rejectOrder.isPending || !rejectReason.trim()}
+                      data-testid="confirm-reject-btn"
                     >
                       {rejectOrder.isPending ? 'Rejecting...' : 'Reject Order'}
                     </Button>

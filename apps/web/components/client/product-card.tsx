@@ -44,7 +44,7 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" data-testid="product-card">
       <Link href={`/products/${product.id}`}>
         <div className="relative aspect-square bg-muted">
           {primaryImage ? (

@@ -1,5 +1,6 @@
 .PHONY: dev dev-backend dev-frontend build build-backend build-frontend \
         test test-backend test-frontend test-integration test-all \
+        test-e2e test-e2e-ui test-e2e-headed test-e2e-install \
         lint lint-backend lint-frontend \
         migrate-up migrate-down migrate-create migrate-force migrate-version \
         install clean
@@ -55,6 +56,22 @@ test-integration:
 test-all:
 	cd backend && $(MAKE) test-all
 	cd apps/web && npm test
+
+# ============================================================================
+# E2E Testing
+# ============================================================================
+
+test-e2e:
+	cd apps/web && npx playwright test
+
+test-e2e-ui:
+	cd apps/web && npx playwright test --ui
+
+test-e2e-headed:
+	cd apps/web && npx playwright test --headed
+
+test-e2e-install:
+	cd apps/web && npx playwright install chromium
 
 # ============================================================================
 # Linting

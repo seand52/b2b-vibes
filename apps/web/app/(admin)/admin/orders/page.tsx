@@ -89,7 +89,7 @@ export default function AdminOrdersPage() {
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} data-testid="order-row">
                   <TableCell className="font-medium">
                     #{order.id.slice(0, 8)}
                   </TableCell>
@@ -97,7 +97,7 @@ export default function AdminOrdersPage() {
                     {order.item_count} item{order.item_count !== 1 ? 's' : ''}
                   </TableCell>
                   <TableCell>
-                    <OrderStatusBadge status={order.status} />
+                    <OrderStatusBadge status={order.status} data-testid="order-status" />
                   </TableCell>
                   <TableCell>
                     {new Date(order.created_at).toLocaleDateString('en-US', {

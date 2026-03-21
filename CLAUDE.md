@@ -109,6 +109,16 @@ See `beads-workflow` skill for complete command reference.
 | Context7 | Library documentation lookup |
 | Filesystem | File system operations beyond workspace |
 
+## Environment Notes (NixOS)
+
+This project is developed on NixOS. Global npm installs don't work due to immutable Nix store.
+
+**Playwright CLI**: Always use npx instead of global install:
+```bash
+npx @playwright/cli@latest --help
+npx @playwright/cli@latest install --skills
+```
+
 ## Skills
 
 Check `.claude/skills/` before ad-hoc generation. Skills are auto-suggested based on context via `.claude/skills/skill-rules.json`.

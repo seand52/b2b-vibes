@@ -76,7 +76,7 @@ export function CartItem({ item }: CartItemProps) {
   const isPending = updateQuantity.isPending || removeItem.isPending;
 
   return (
-    <Card>
+    <Card data-testid="cart-item">
       <CardContent className="flex items-center gap-4 p-4">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold truncate">{item.product_name}</h3>
