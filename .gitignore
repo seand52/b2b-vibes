@@ -41,3 +41,11 @@ apps/web/e2e/.auth/
 *.tmp
 *.log
 apps/web/.git.bak
+
+# Nix
+.direnv/
+result
+result-*
+
+# Playwright browsers (installed locally on NixOS)
+.playwright/

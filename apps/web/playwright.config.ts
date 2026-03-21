@@ -18,7 +18,7 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
     actionTimeout: 10000,
     navigationTimeout: 30000,
   },
@@ -29,6 +29,10 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        // Use system chromium on NixOS via PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH env var
+        launchOptions: {
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+        },
       },
     },
 
@@ -37,6 +41,9 @@ export default defineConfig({
       name: 'chromium-admin',
       use: {
         ...devices['Desktop Chrome'],
+        launchOptions: {
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+        },
       },
       testMatch: /admin\.spec\.ts/,
     },
